@@ -114,3 +114,56 @@ pub async fn get_node_version() -> Result<Option<String>, String> {
         },
     }
 }
+
+/// Check if Ollama is installed
+#[command]
+pub async fn check_ollama_installed() -> Result<bool, String> {
+    info!("[Ollama Check] Checking if Ollama is installed...");
+    let installed = shell::command_exists("ollama");
+    info!("[Ollama Check] Ollama installation status: {}", if installed { "installed" } else { "not installed" });
+    Ok(installed)
+}
+
+/// Get installed Ollama models
+#[command]
+pub async fn get_ollama_models() -> Result<Vec<String>, String> {
+    info!("[Ollama Check] Getting installed Ollama models...");
+    match shell::run_command_output("ollama", &["list"]) {
+        Ok(output) => {
+            let mut models = Vec::new();
+            // Output format: NAME               ID           SIZE   MODIFIED   
+            //                qwen3.5:9b         abcd1234ef   5.5GB  3 days ago
+            for (i, line) in output.lines().enumerate() {
+                if i == 0 || line.trim().is_empty() {
+                    continue; // Skip header and empty lines
+                }
+                if let Some(name) = line.split_whitespace().next() {
+                    models.push(name.to_string());
+                }
+            }
+            info!("[Ollama Check] Found {} installed models", models.len());
+            Ok(models)
+        },
+        Err(e) => {
+            debug!("[Ollama Check] Failed to get Ollama models: {}", e);
+            Err(e)
+        },
+    }
+}
+
+/// Install / pull an Ollama model
+#[command]
+pub async fn install_ollama_model(model_name: String) -> Result<String, String> {
+    info!("[Ollama Check] Installing Ollama model: {}", model_name);
+    // Use `ollama pull` instead of `ollama run` so it doesn't stay interactive.
+    match shell::run_command_output("ollama", &["pull", &model_name]) {
+        Ok(_) => {
+            info!("[Ollama Check] Successfully installed model: {}", model_name);
+            Ok(format!("Successfully installed {}", model_name))
+        },
+        Err(e) => {
+            debug!("[Ollama Check] Failed to install Ollama model {}: {}", model_name, e);
+            Err(e)
+        },
+    }
+}
